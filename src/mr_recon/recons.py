@@ -144,6 +144,79 @@ def CG_SENSE_recon(A: linop,
     
     return recon
 
+def CG_SENSE_recon_adjoint(A: linop,
+                           img_vec: torch.Tensor,
+                           max_iter: Optional[int] = 15,
+                           lamda_l2: Optional[float] = 0.0,
+                           max_eigen: Optional[float] = None,
+                           tolerance: Optional[float] = 1e-8,
+                           verbose: Optional[bool] = True) -> torch.Tensor:
+    """
+    Apply the Hermitian conjugate of the CG-SENSE reconstruction operator R^H:
+    output = R^H @ img_vec = A @ (AHA + lamda_l2*I)^-1 @ img_vec
+    
+    Parameters:
+    -----------
+    A : linop
+        The linear operator (see linop)
+    img_vec : torch.Tensor
+        Input image-space vector with shape A.ishape
+    max_iter : int
+        Max number of iterations for CG algorithm
+    lamda_l2 : float
+        L2 lambda regularization for SENSE
+    max_eigen : float
+        Maximum eigenvalue of AHA. If None, will be estimated.
+    tolerance : float
+        Tolerance for CG algorithm
+    verbose : bool 
+        Toggles print statements
+
+    Returns:
+    --------
+    ksp_vec : torch.Tensor
+        Resulting k-space like vector with shape A.oshape
+    """
+
+    # Consts
+    device = img_vec.device
+
+    # Ensure input vector has correct dtype
+    v = img_vec.type(complex_dtype)
+
+    # Estimate largest eigenvalue if not provided
+    if max_eigen is None:
+        if verbose:
+            print(f"Estimating maximum eigenvalue with power method...")
+        x0 = torch.randn(A.ishape, dtype=complex_dtype, device=device)
+        _, max_eigen = power_method_operator(A.normal, x0, verbose=verbose)
+        max_eigen *= 1.01
+        if verbose:
+            print(f"Maximum eigenvalue: {max_eigen:.4e}")
+
+    # Wrap normal operator with max eigenvalue for CG
+    AHA_normalized = lambda x : A.normal(x) / max_eigen
+
+    # Scale the input vector for the CG solve
+    scaled_v = v / (max_eigen ** 0.5)
+
+    # --- Step 1: Solve (AHA + lambda*I)z = v --- 
+    if verbose:
+        print(f"Running CG solve for R.H step 1...")
+    z = conjugate_gradient(AHA=AHA_normalized,
+                           AHb=scaled_v,
+                           num_iters=max_iter,
+                           lamda_l2=lamda_l2, # Matches CG_SENSE_recon
+                           tolerance=tolerance,
+                           verbose=verbose)
+    
+    # --- Step 2: Apply A (Forward operator) --- 
+    if verbose:
+        print(f"Applying forward operator A for R.H step 2...")
+    ksp_vec = A.forward(z)
+    
+    return ksp_vec
+
 def coil_combine(multi_chan_img: torch.Tensor,
                  mps: Optional[torch.Tensor] = None,
                  walsh_kernel_size: Optional[int] = None) -> torch.Tensor:
@@ -251,3 +324,96 @@ def FISTA_recon(A: linop,
     recon = FISTA(AHA, AHb, proxg, max_iter)
 
     return recon
+
+def doubleCG_inv_op_builder(A: linop,
+                             dcf: Optional[torch.Tensor] = None,
+                             max_iter: Optional[int] = 15,
+                             lamda_l2: Optional[float] = 0.0,
+                             max_eigen: Optional[float] = None,
+                             tolerance: Optional[float] = 1e-8,
+                             verbose: Optional[bool] = True) -> callable:
+    """
+    Build an inverse gram operator (AHA)^-1 for g-factor calculation using
+    double conjugate gradient solves with max eigenvalue normalization.
+    
+    This creates a function suitable for use with diagonal estimation methods
+    for g-factor calculations. The implementation uses eigenvalue normalization
+    to improve convergence and numerical stability.
+    
+    Parameters:
+    -----------
+    A : linop
+        The linear operator (see linop)
+    dcf : torch.Tensor, optional
+        Density compensation function. If None, no DCF weighting is applied
+    max_iter : int
+        Max number of iterations for each CG solve
+    lamda_l2 : float
+        L2 lambda regularization
+    max_eigen : float
+        Maximum eigenvalue of AHA. If None, will be estimated using power method
+    tolerance : float
+        Tolerance for CG algorithm
+    verbose : bool
+        Toggle print statements
+    
+    Returns:
+    --------
+    AHA_inv : callable
+        A function that applies (AHA)^-1 to its input
+    """
+    # Constants
+    device = A.torch_dev
+
+    # Estimate largest eigenvalue if not provided
+    if max_eigen is None:
+        if verbose:
+            print(f"Estimating maximum eigenvalue with power method...")
+        x0 = torch.randn(A.ishape, dtype=complex_dtype, device=device)
+        _, max_eigen = power_method_operator(A.normal, x0, verbose=verbose)
+        max_eigen *= 1.01  # Add 1% for safety, like in CG_SENSE_recon
+        if verbose:
+            print(f"Maximum eigenvalue: {max_eigen:.4e}")
+    
+    # Create normalized operator for CG
+    AHA_normalized = lambda x: A.normal(x) / max_eigen
+    
+    # Define the inverse gram operator function
+    def AHA_inv(x: torch.Tensor) -> torch.Tensor:
+        """
+        Apply (AHA)^-1 to input x using double CG with eigenvalue normalization
+        """
+        # First CG solve
+        scaled_x = x / (max_eigen ** 0.5)
+        ret = conjugate_gradient(
+            AHA=AHA_normalized,
+            AHb=scaled_x,
+            num_iters=max_iter,
+            lamda_l2=lamda_l2,
+            tolerance=tolerance,
+            verbose=verbose
+        )
+        
+        
+        # Apply A^H DCF A in the middle
+        if dcf is not None:
+            # Apply DCF weighting
+            ret = A.adjoint(A.forward(ret) * dcf)
+        else:
+            # No DCF, just apply A^H A
+            ret = A.adjoint(A.forward(ret))
+        
+        # Second CG solve
+        scaled_ret = ret / (max_eigen ** 0.5)
+        ret = conjugate_gradient(
+            AHA=AHA_normalized,
+            AHb=scaled_ret,
+            num_iters=max_iter,
+            lamda_l2=lamda_l2,
+            tolerance=tolerance,
+            verbose=verbose
+        )
+        
+        return ret
+    
+    return AHA_inv
