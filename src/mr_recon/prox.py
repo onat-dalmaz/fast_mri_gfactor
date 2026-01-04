@@ -135,15 +135,16 @@ class L1Wav(nn.Module):
 
 # FIXME TODO
 class TV(nn.Module):
-    
     def __init__(self,
                  im_size: tuple,
                  lamda: float,
-                 norm: Optional[str] = 'l1'):
+                 norm: Optional[str] = 'l1',
+                 max_iter: int = 50,
+                 tol: float = 1e-4):
         """
         TV operator is defined as
 
-        TV(x) = norm(D)
+        TV(x) = norm(Dx)
 
         Parameters:
         -----------
@@ -151,38 +152,211 @@ class TV(nn.Module):
             the image/volume dimensions
         lamda : float
             Regularization strength
+
         norm : str
             the type of norm to use from:
-            ['l1', 'l2']
+            ['l1', 'l2'] (Currently only 'l2' is implemented)
+        
+        max_iter : int
+            Maximum number of iterations for the proximal operator
+        
+        tol : float
+            Tolerance for convergence in the proximal operator
         """
         super().__init__()
         assert len(im_size) == 2 or len(im_size) == 3, 'Only 2D and 3D images are supported'
         self.im_size = im_size
         self.lamda = lamda
+        self.norm = norm
+        self.max_iter = max_iter
+        self.tol = tol
     
     def forward(self,
-                input: torch.tensor,
+                input: torch.Tensor,
                 alpha: Optional[float] = 1.0):
         """
-        Proximal operator
+        Proximal operator for TV regularization using Chambolle's algorithm.
 
         Parameters:
         -----------
-        input : torch.tensor
-            image/volume input with shape (..., *im_size)
+        input : torch.Tensor
+            Image/volume input with shape (..., *im_size)
         alpha : float
-            proximal weighting term on g(x)
+            Proximal weighting term on g(x)
 
         Returns:
         --------
-        output : torch.tensor
-            proximal output
+        output : torch.Tensor
+            Proximal output
         """
 
-        return input # TODO
+        # Handle complex inputs by working with magnitude
+        # For complex images, we apply TV to the magnitude and preserve phase
+        is_complex = torch.is_complex(input)
+        if is_complex:
+            x_mag = torch.abs(input)
+            x_phase = torch.angle(input)
+        else:
+            x_mag = input
+            x_phase = None
+
+        # Determine spatial dimensions based on im_size
+        spatial_dims = len(self.im_size)
+        if spatial_dims == 2:
+            # 2D case: im_size = (H, W)
+            # Input can be (H, W), (batch, H, W), or (..., H, W)
+            # Extract spatial dimensions
+            if x_mag.dim() == 2:
+                # (H, W)
+                spatial_shape = x_mag.shape
+            else:
+                # (..., H, W) - extract last 2 dimensions
+                spatial_shape = x_mag.shape[-2:]
+            # Use real dtype for dual variables (always real since we work with magnitude)
+            # x_mag is always real (from torch.abs), so just use its dtype
+            p = torch.zeros((2, *spatial_shape), dtype=x_mag.dtype, device=x_mag.device)
+        elif spatial_dims == 3:
+            # 3D case: im_size = (D, H, W)
+            # Input can be (D, H, W), (batch, D, H, W), or (..., D, H, W)
+            if x_mag.dim() == 3:
+                # (D, H, W)
+                spatial_shape = x_mag.shape
+            else:
+                # (..., D, H, W) - extract last 3 dimensions
+                spatial_shape = x_mag.shape[-3:]
+            # Use real dtype for dual variables (always real since we work with magnitude)
+            # x_mag is always real (from torch.abs), so just use its dtype
+            p = torch.zeros((3, *spatial_shape), dtype=x_mag.dtype, device=x_mag.device)
+        else:
+            raise ValueError('Only 2D and 3D images are supported.')
+
+        tau = 0.25  # Step size
+
+        # Work with magnitude for TV computation
+        x_div = x_mag
+
+        # Iteratively update dual variables
+        for _ in range(self.max_iter):
+            p_old = p.clone()
+
+            # Compute gradient of divergence
+            div_p = self.divergence(p)
+            grad = self.gradient(x_div - alpha * self.lamda * div_p)
+
+            # Update dual variables
+            p = p + tau * grad
+
+            # Projection onto the L2 unit ball
+            # p is always real since we work with magnitude
+            if self.norm == 'l2':
+                norm_p = torch.sqrt(torch.sum(p ** 2, dim=0, keepdim=True))
+                norm_p = torch.clamp(norm_p, min=1.0)
+                p = p / norm_p
+            elif self.norm == 'l1':
+                p = torch.clamp(p, min=-1.0, max=1.0)
+            else:
+                raise ValueError("Unsupported norm type. Use 'l1' or 'l2'.")
+
+            # Check convergence
+            dp = p - p_old
+            if dp.abs().max() < self.tol:
+                break
+
+        # Compute the output
+        div_p = self.divergence(p)
+        x_new_mag = x_mag - alpha * self.lamda * div_p
+        
+        # Reconstruct complex output if input was complex
+        if is_complex:
+            x_new = x_new_mag * torch.exp(1j * x_phase)
+        else:
+            x_new = x_new_mag
+
+        return x_new
+
+    def gradient(self, x):
+        """
+        Compute the gradient of x.
+
+        Parameters:
+        -----------
+        x : torch.Tensor
+            Input tensor with spatial dimensions matching im_size
+
+        Returns:
+        --------
+        grad : torch.Tensor
+            Gradient of x with shape (ndirs, *spatial_shape)
+        """
+        spatial_dims = len(self.im_size)
+        if spatial_dims == 2:
+            # 2D case: x has shape (H, W) or (..., H, W)
+            if x.dim() == 2:
+                # (H, W)
+                grad_x = F.pad(x[1:, :] - x[:-1, :], (0, 0, 0, 1), mode='constant', value=0)
+                grad_y = F.pad(x[:, 1:] - x[:, :-1], (0, 1, 0, 0), mode='constant', value=0)
+            else:
+                # (..., H, W) - work on last 2 dimensions
+                grad_x = F.pad(x[..., 1:, :] - x[..., :-1, :], (0, 0, 0, 1), mode='constant', value=0)
+                grad_y = F.pad(x[..., :, 1:] - x[..., :, :-1], (0, 1, 0, 0), mode='constant', value=0)
+            grad = torch.stack((grad_x, grad_y), dim=0)
+        elif spatial_dims == 3:
+            # 3D case: x has shape (D, H, W) or (..., D, H, W)
+            if x.dim() == 3:
+                # (D, H, W)
+                grad_x = F.pad(x[1:, :, :] - x[:-1, :, :], (0, 0, 0, 0, 0, 1), mode='constant', value=0)
+                grad_y = F.pad(x[:, 1:, :] - x[:, :-1, :], (0, 0, 0, 1, 0, 0), mode='constant', value=0)
+                grad_z = F.pad(x[:, :, 1:] - x[:, :, :-1], (0, 1, 0, 0, 0, 0), mode='constant', value=0)
+            else:
+                # (..., D, H, W) - work on last 3 dimensions
+                grad_x = F.pad(x[..., 1:, :, :] - x[..., :-1, :, :], (0, 0, 0, 0, 0, 1), mode='constant', value=0)
+                grad_y = F.pad(x[..., :, 1:, :] - x[..., :, :-1, :], (0, 0, 0, 1, 0, 0), mode='constant', value=0)
+                grad_z = F.pad(x[..., :, :, 1:] - x[..., :, :, :-1], (0, 1, 0, 0, 0, 0), mode='constant', value=0)
+            grad = torch.stack((grad_x, grad_y, grad_z), dim=0)
+        else:
+            raise ValueError('Only 2D and 3D images are supported.')
+        return grad
+
+    def divergence(self, p):
+        """
+        Compute the divergence of p.
+
+        Parameters:
+        -----------
+        p : torch.Tensor
+            Dual variable with shape (ndirs, *spatial_shape)
+
+        Returns:
+        --------
+        div : torch.Tensor
+            Divergence of p with shape matching spatial dimensions
+        """
+        spatial_dims = len(self.im_size)
+        if spatial_dims == 2:
+            # p has shape (2, H, W)
+            p_x = p[0]
+            p_y = p[1]
+
+            div_x = F.pad(p_x[:-1, :] - p_x[1:, :], (0, 0, 1, 0), mode='constant', value=0)
+            div_y = F.pad(p_y[:, :-1] - p_y[:, 1:], (1, 0, 0, 0), mode='constant', value=0)
+            div = div_x + div_y
+        elif spatial_dims == 3:
+            # p has shape (3, D, H, W)
+            p_x = p[0]
+            p_y = p[1]
+            p_z = p[2]
+
+            div_x = F.pad(p_x[:-1, :, :] - p_x[1:, :, :], (0, 0, 0, 0, 1, 0), mode='constant', value=0)
+            div_y = F.pad(p_y[:, :-1, :] - p_y[:, 1:, :], (0, 0, 0, 1, 0, 0), mode='constant', value=0)
+            div_z = F.pad(p_z[:, :, :-1] - p_z[:, :, 1:], (1, 0, 0, 0, 0, 0), mode='constant', value=0)
+            div = div_x + div_y + div_z
+        else:
+            raise ValueError('Only 2D and 3D images are supported.')
+        return div
+
 
 class LocallyLowRank(nn.Module):
-    """Version of LLR mimicking Sid's version in Sigpy
+    """Version of LLR based on https://pmc.ncbi.nlm.nih.gov/articles/PMC10081201/
 
     Language based on spatiotemporal blocks
     """

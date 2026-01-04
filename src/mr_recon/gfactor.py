@@ -12,35 +12,16 @@ def gfactor_SENSE_PMR(R_ref: callable,
                       verbose: Optional[bool] = True) -> torch.Tensor:
     """
     Calculates the g-factor map of a SENSE reconstruction using Psuedo Multiple Replica method.
-    
-    Parameters:
-    ----------
-    R_ref : callable
-        Reference linear reconsruction operator mapping from k-space to image domain
-    R_acc : callable
-        Accelerated linear reconsruction operator mapping from k-space to image domain
-    ksp_ref : torch.Tensor
-        Reference k-space data (can be zeros)
-    ksp_acc : torch.Tensor
-        Accelerated k-space data (can be zeros)
-    noise_var : float
-        Variance of k-space pseudo-noise
-    n_replicas : int
-        Number of replicas to use.
-    verbose : bool
-        Toggles progress bar
-        
-    Returns:
-    --------
-    gfactor : torch.Tensor
-        g-factor map with same size as image.
     """
     
     var_ref = calc_variance_PMR(R_ref, ksp_ref, noise_var, n_replicas, verbose)
     var_acc = calc_variance_PMR(R_acc, ksp_acc, noise_var, n_replicas, verbose)
         
     # Calculate g-factor directly
-    gfactor = torch.sqrt(var_acc / var_ref)
+    # Add small epsilon to prevent division by zero and ensure non-negative ratio
+    eps = 1e-12
+    ratio = var_acc / (var_ref + eps)
+    gfactor = torch.sqrt(torch.clamp(ratio, min=0.0))
     
     return gfactor
 
@@ -85,8 +66,9 @@ def calc_variance_PMR(R: callable,
                       noise_var: Optional[float] = 1e-2,
                       n_replicas: Optional[int] = 100,
                       verbose: Optional[bool] = True) -> torch.Tensor:
+    
     """
-    Comptutes variance map of reconstruction R(noise) using Psuedo Mulitple Replica method:
+    Computes variance map of reconstruction R(noise) using Psuedo Mulitple Replica method:
     
     var = \sum_n |R(noise_n)|^2 / (N * noise_var)
     
@@ -112,11 +94,14 @@ def calc_variance_PMR(R: callable,
     var : torch.Tensor
         variance map with same size as image.
     """
+    
     if ksp.norm() < 1e-9:
+        # If k-space is empty, noise is the only signal.
+        # Use a running sum to avoid storing all replicas in memory.
         var = None
-        for n in tqdm(range(n_replicas), 'PMR Loop', disable=not verbose):
-            noise = (noise_var ** 0.5) * torch.randn_like(ksp * 0)
-            
+        pbar = tqdm(range(n_replicas), 'PMR Loop (zero-ksp)', disable=not verbose)
+        for n in pbar:
+            noise = (noise_var ** 0.5) * torch.randn_like(ksp)
             recon = R(ksp + noise)
             var_n = recon.abs() ** 2 / (n_replicas * noise_var)
             if var is None:
@@ -125,13 +110,17 @@ def calc_variance_PMR(R: callable,
                 var += var_n
     else:
         recons = []
-        for n in tqdm(range(n_replicas), 'PMR Loop', disable=not verbose):
-            noise = (noise_var ** 0.5) * torch.randn_like(ksp * 0)
-            if n < 2:
-                print(noise.norm())
+        pbar = tqdm(range(n_replicas), 'PMR Loop', disable=not verbose)
+        for n in pbar:
+            noise = (noise_var ** 0.5) * torch.randn_like(ksp)
             recons.append(R(ksp + noise))
+        
         recons = torch.stack(recons, dim=0)
-        var = torch.var(recons, dim=0)
+        # Variance = E[|X|^2] - |E[X]|^2 = Var(Real) + Var(Imag)
+        # torch.var calculates the sample variance (unbiased by default)
+        # For complex input, torch.var calculates var(real) + var(imag) which is what we want for total noise power
+        var = torch.var(recons, dim=0, unbiased=False) / noise_var
+        
     return var
 
 def diagonal_estimator(M: callable,
@@ -184,17 +173,86 @@ def diagonal_estimator(M: callable,
     
     # Estimate diagonal
     diag = torch.zeros_like(inp_example)
-    for n in tqdm(range(n_replicas), 'Diagonal Estimator Loop', disable=not verbose):
-        v = (rnd_vec())*sigma
-        if n == 0:
-            print(f"norm of v: {torch.norm(v)}")
-            print(f"shape of v: {v.shape}")
+    if verbose:
+        pbar = tqdm(range(n_replicas), 'Diagonal Estimation')
+    else:
+        pbar = range(n_replicas)
+        
+    for i in pbar:
+        v = rnd_vec()
         Mv = M(v)
         diag += (v.conj() * Mv) / n_replicas
     diag = diag
     return diag.abs()
 
-def gfactor_sense(mps, Rx, Ry, l2_reg=0.0, device='cuda'):
+
+def incremental_calc_variance_PMR(R, ksp, noise_var, N_values, verbose=True):
+    """
+    Incrementally calculates the variance map of a reconstruction using the Pseudo Multiple Replica method,
+    yielding the result at each N specified in N_values.
+
+    This is more efficient than calling calc_variance_PMR for each N, as it reuses samples.
+    """
+    running_sum = 0
+    cumulative_N = 0
+    sorted_N = sorted(N_values)
+
+    pbar = tqdm(total=sorted_N[-1], desc="Incremental PMR", disable=not verbose)
+    for n_target in sorted_N:
+        num_new_samples = n_target - cumulative_N
+        for _ in range(num_new_samples):
+            noise = (noise_var ** 0.5) * torch.randn_like(ksp)
+            recon = R(ksp + noise)
+            if isinstance(running_sum, int):
+                 # Initialize running sum with the correct shape and type
+                 running_sum = torch.zeros_like(recon, dtype=torch.float32)
+            running_sum += recon.abs()**2
+            pbar.update(1)
+        
+        cumulative_N = n_target
+        # The variance is the expectation of |R(noise)|^2, which is the sum / N
+        # The final division by noise_var is part of the PMR definition
+        yield running_sum / (cumulative_N * noise_var)
+    pbar.close()
+
+
+def incremental_diagonal_estimator(M, inp_example, N_values, rnd_vec_type='complex', sigma=1.0, verbose=True):
+    """
+    Incrementally calculates the diagonal of an operator using Hutchinson's method,
+    yielding the result at each N specified in N_values.
+
+    This is more efficient than calling diagonal_estimator for each N, as it reuses samples.
+    """
+    # ... (Setup random vector generator as in diagonal_estimator)
+    ishape, idevice, idtype = inp_example.shape, inp_example.device, inp_example.dtype
+    if rnd_vec_type == 'complex':
+        rnd_vec_comp = lambda : torch.exp(1j * 2 * torch.pi * torch.rand(ishape, device=idevice)).type(idtype)
+        rnd_vec = lambda : rnd_vec_comp()
+    elif rnd_vec_type == 'real':
+        rnd_vec_real = lambda : torch.randn(ishape, device=idevice).sign().type(idtype)
+        rnd_vec = lambda : rnd_vec_real()
+    
+    running_sum = 0
+    cumulative_N = 0
+    sorted_N = sorted(N_values)
+
+    pbar = tqdm(total=sorted_N[-1], desc="Incremental Hutchinson", disable=not verbose)
+    for n_target in sorted_N:
+        num_new_samples = n_target - cumulative_N
+        for _ in range(num_new_samples):
+            v = rnd_vec() * sigma
+            Mv = M(v)
+            if isinstance(running_sum, int):
+                running_sum = torch.zeros_like(v, dtype=torch.float32)
+            running_sum += (v.conj() * Mv).real
+            pbar.update(1)
+            
+        cumulative_N = n_target
+        yield (running_sum / cumulative_N).abs()
+    pbar.close()
+
+
+def gfactor_sense(mps, Rx, Ry, l2_reg=0.0):
     """
     mps  : (C, H, W) complex128/complex64 coil-sensitivity maps
     Rx,Ry: in-plane acceleration factors
@@ -220,7 +278,7 @@ def gfactor_sense(mps, Rx, Ry, l2_reg=0.0, device='cuda'):
     # ------------------------------------------------------------------
     # 3. Invert per pixel with Tikhonov regularisation
     # ------------------------------------------------------------------
-    eye = l2_reg * torch.eye(R, dtype=chc.dtype, device=device)
+    eye = l2_reg * torch.eye(R, dtype=chc.dtype, device=mps.device)
     eye = eye.expand(H, W, R, R)
     chc_inv = torch.linalg.inv(chc + eye)                           # (H,W,R,R)
 

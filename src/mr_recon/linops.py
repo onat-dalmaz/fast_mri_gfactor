@@ -927,6 +927,39 @@ class sense_linop(linop):
         
         return img_hat
 
+class sense_cartesian_linop(linop):
+    """
+    Linop for Cartesian SENSE models.
+    """
+    def __init__(self, im_size, mps, mask):
+        ishape = im_size
+        oshape = (mps.shape[0], *im_size)
+        super().__init__(ishape, oshape)
+
+        self.mps = mps
+        self.mask = mask
+
+    def forward(self, img):
+        # Apply sensitivity maps
+        img_coils = self.mps * img
+        # FFT
+        ksp_coils = fft(img_coils, dim=(-2, -1))
+        # Apply sampling mask
+        ksp_masked = ksp_coils * self.mask
+        return ksp_masked
+
+    def adjoint(self, ksp):
+        # Apply sampling mask (unnecessary, but for completeness)
+        ksp_masked = ksp * self.mask
+        # iFFT
+        img_coils = ifft(ksp_masked, dim=(-2, -1))
+        # Combine coils
+        img = torch.sum(img_coils * self.mps.conj(), dim=0)
+        return img
+
+    def normal(self, img):
+        return self.adjoint(self.forward(img))
+
 class subspace_linop_grog(linop):
     """
     Subspace linop designed for grogged data.
