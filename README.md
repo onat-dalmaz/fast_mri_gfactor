@@ -38,6 +38,8 @@ Demonstrates g-factor analysis on clinical Cartesian knee MRI data with analytic
 - Analytical reference for accuracy validation
 - Excellent performance on structured Cartesian undersampling
 
+![Cartesian Knee Convergence](notebooks/assets/cartesian_knee_convergence.gif)
+
 ## 🚀 Quick Start
 
 ### Prerequisites
