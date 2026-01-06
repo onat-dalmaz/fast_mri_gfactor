@@ -26,7 +26,7 @@ Demonstrates g-factor analysis on a non-Cartesian phantom dataset with spiral tr
 - Equivalent accuracy for N ≥ 50
 - Robust performance on complex k-space trajectories
 
-![Non-Cartesian Phantom Convergence](notebooks/assets/noncartesian_phantom_convergence.gif)
+[📊 Non-Cartesian Phantom Convergence Animation](https://github.com/onat-dalmaz/fast_mri_gfactor/raw/main/notebooks/assets/noncartesian_phantom_convergence.gif)
 
 #### 2. Cartesian Knee Analysis
 **File**: `notebooks/cartesian_knee_gfactor_comparison.ipynb`
@@ -38,7 +38,7 @@ Demonstrates g-factor analysis on clinical Cartesian knee MRI data with analytic
 - Analytical reference for accuracy validation
 - Excellent performance on structured Cartesian undersampling
 
-![Cartesian Knee Convergence](notebooks/assets/cartesian_knee_convergence.gif)
+[📊 Cartesian Knee Convergence Animation](https://github.com/onat-dalmaz/fast_mri_gfactor/raw/main/notebooks/assets/cartesian_knee_convergence.gif)
 
 ## 🚀 Quick Start
 
