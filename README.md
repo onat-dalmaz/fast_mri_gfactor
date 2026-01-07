@@ -48,13 +48,11 @@ The notebooks focus on comparing **convergence behavior** and practical runtime/
 - Regularized CG-SENSE with NUFFT/DCF and Toeplitz normal-op acceleration  
 - Reference: high-replica PMR surrogate (e.g., \(N_\mathrm{ref}=10{,}000\))
 
-Assets (if included in repo):
-- `notebooks/assets/noncartesian_phantom_convergence.gif`
-- `notebooks/assets/compressed/noncartesian_phantom_convergence_small.gif`
 
 ---
 
 ### 2) Cartesian knee (unregularized CG-SENSE, analytical reference)
+![Cartesian Knee Convergence](notebooks/assets/compressed/cartesian_knee_convergence_small.gif)
 **Notebook:** `notebooks/cartesian_knee_gfactor_comparison.ipynb`
 
 - Stanford knee dataset (multi-coil Cartesian)  
@@ -62,9 +60,6 @@ Assets (if included in repo):
 - Unregularized CG-SENSE  
 - Reference: closed-form analytical SENSE g-factor
 
-Assets (if included in repo):
-- `notebooks/assets/cartesian_knee_convergence.gif`
-- `notebooks/assets/compressed/cartesian_knee_convergence_small.gif`
 
 ---
 
@@ -72,7 +67,7 @@ Assets (if included in repo):
 
 ### Setup
 ```bash
-git clone https://github.com/<your-org-or-user>/<your-repo>.git
+git clone [https://github.com/<your-org-or-user>/<your-repo>.git](https://github.com/onat-dalmaz/fast_mri_gfactor.git)
 cd <your-repo>
 
 conda env create -f environment.yml
