@@ -1,163 +1,114 @@
-# MRI G-Factor Analysis: Accelerated Parallel Imaging Reconstruction
+# MRI g-factor & SNR efficiency maps for modern iterative recon
 
-Advanced computational methods for g-factor calculation in parallel MRI with significant performance improvements over traditional approaches.
+Code and notebooks for estimating **spatially varying noise amplification** (g-factor / 1/g SNR efficiency) in **parallel MRI reconstructions**, with an emphasis on **iterative** (CG-SENSE) and **non-Cartesian** settings.
 
-## 🎯 Overview
-
-This repository contains research code and interactive demonstrations for novel g-factor calculation methods in parallel MRI reconstruction. Our diagnostic approach provides 15-30x computational speedup while maintaining accuracy compared to traditional pseudo-multiple replica (PMR) techniques.
-
-### 🔬 Key Innovation
-- **Diagnostic Hutchinson's Method**: Direct matrix diagonalization avoiding expensive Monte Carlo sampling
-- **Performance**: 15-30x faster than PMR with equivalent accuracy
-- **Applications**: Cartesian and non-Cartesian parallel imaging reconstruction
-
-## 📚 Interactive Demonstrations
-
-### Jupyter Notebook Demos
-Located in `notebooks/` directory:
-
-#### 1. Non-Cartesian Phantom Analysis
-**File**: `notebooks/non_cartesian_phantom_gfactor_comparison.ipynb`
-
-Demonstrates g-factor analysis on a non-Cartesian phantom dataset with spiral trajectory.
-
-**Key Results**:
-- 15-20x speedup over PMR method
-- Equivalent accuracy for N ≥ 50
-- Robust performance on complex k-space trajectories
-
-![Non-Cartesian Phantom Convergence](notebooks/assets/compressed/noncartesian_phantom_convergence_small.gif)
-
-*[Full-size animation available](notebooks/assets/noncartesian_phantom_convergence.gif)*
-
-#### 2. Cartesian Knee Analysis
-**File**: `notebooks/cartesian_knee_gfactor_comparison.ipynb`
-
-Demonstrates g-factor analysis on clinical Cartesian knee MRI data with analytical ground truth.
-
-**Key Results**:
-- 20-30x speedup over PMR method
-- Analytical reference for accuracy validation
-- Excellent performance on structured Cartesian undersampling
-
-![Cartesian Knee Convergence](notebooks/assets/compressed/cartesian_knee_convergence_small.gif)
-
-*[Full-size animation available](notebooks/assets/cartesian_knee_convergence.gif)*
-
-## 🚀 Quick Start
-
-### Prerequisites
-```bash
-# Clone repository
-git clone https://github.com/your-repo/mr_recon.git
-cd mr_recon
-
-# Install dependencies
-conda env create -f environment.yml
-conda activate mr_recon_env
-
-# Install additional packages if needed
-pip install h5py einops
-```
-
-### Running the Demos
-
-1. **Launch Jupyter**:
-   ```bash
-   jupyter notebook
-   ```
-
-2. **Open desired notebook**:
-   - For non-Cartesian phantom: `notebooks/non_cartesian_phantom_gfactor_comparison.ipynb`
-   - For Cartesian knee: `notebooks/cartesian_knee_gfactor_comparison.ipynb`
-
-3. **Configure parameters** (optional):
-   - `R`: Acceleration factor (default: 2)
-   - `N_values`: Noise replica counts to test (default: [10, 20, 50])
-   - `display_mode`: 'g' or 'inv_g' for g-factor vs 1/g-factor display
-
-4. **Run all cells** to generate results and visualizations
-
-## 📊 Performance Summary
-
-| Dataset | Method | N=10 | N=20 | N=50 | Speedup |
-|---------|--------|------|------|------|---------|
-| Non-Cartesian Phantom | PMR | 7.8s | 13.9s | 34.2s | 1x |
-| | Our Method | 0.81s | 1.6s | 3.8s | **15-20x** |
-| Cartesian Knee | PMR | 4.3s | 7.7s | 19.1s | 1x |
-| | Our Method | 0.26s | 0.50s | 1.3s | **20-30x** |
-
-## 🏗️ Method Description
-
-### Traditional PMR Approach
-- Generates N independent noise realizations
-- Reconstructs each noise-corrupted dataset
-- Computes g-factor from noise amplification statistics
-- **Limitation**: Computationally expensive (scales with N × reconstruction time)
-
-### Our Diagnostic Approach
-- Uses Hutchinson's randomized trace estimation
-- Diagonalizes the noise amplification operator directly
-- Achieves equivalent accuracy with dramatically reduced computation
-- **Advantage**: Near-constant time complexity regardless of N
-
-## 📈 Convergence Analysis
-
-Both notebooks demonstrate convergence behavior as a function of noise replica count (N):
-
-- **PMR Method**: Monte Carlo convergence (1/√N)
-- **Our Method**: Deterministic diagonalization (exact for sufficiently large N)
-- **Practical Result**: N=50 provides converged results for both methods
-
-## 🎨 Visualization Features
-
-### Interactive Plots
-- Side-by-side comparison of PMR vs our method
-- Color-coded g-factor maps with consistent scaling
-- Timing analysis with performance metrics
-- Convergence animations showing improvement with N
-
-### Output Files
-Each notebook generates:
-- PNG/SVG comparison plots
-- Timing data (`.txt` files)
-- Reconstructed images
-- Comprehensive logging
-
-## 🔬 Technical Details
-
-### G-Factor Definition
-The g-factor quantifies noise amplification in parallel MRI:
-
-```
-g = σ_reconstructed / σ_coil
-```
-
-where σ_reconstructed is the reconstructed noise standard deviation and σ_coil is the individual coil noise.
-
-### Acceleration Factor (R)
-- R=2: 2x acceleration (every other phase encode line)
-- Higher R values increase g-factor values and computational challenge
-
-### Regularization (λ)
-- L2 regularization parameter for reconstruction stability
-- Typical values: 0.01-1.0 depending on SNR
-
-## 📚 References
-
-1. **Hutchinson's Method**: Randomized algorithms for trace estimation
-2. **PMR Technique**: Pruessmann et al., "SENSE: Sensitivity encoding for fast MRI"
-3. **G-Factor Theory**: Robson et al., "Comprehensive quantification of signal-to-noise ratio and g-factor for image-based and k-space-based parallel imaging reconstructions"
-
-## 🤝 Contributing
-
-This is research code for demonstrating g-factor calculation improvements. For questions about the underlying methods, please refer to the methodology documentation.
-
-## 📄 License
-
-Research code - please cite appropriately if used in your work.
+The goal is practical: make voxel-wise noise/SNR maps easier to compute and compare across reconstruction choices.
 
 ---
 
-**Research Project**: Accelerated G-Factor Calculation for Parallel MRI
-**Focus**: Computational efficiency improvements in quantitative MRI assessment
+## What’s in this repo
+
+- **Notebooks** demonstrating g-factor / 1/g estimation in:
+  - **Cartesian CG-SENSE (knee)** with an **analytical reference** for validation
+  - **Non-Cartesian spiral CG-SENSE (phantom)** with a **high-N PMR surrogate reference**
+- Core utilities for:
+  - Operator-style recon code (forward/adjoint)
+  - Stochastic diagonal estimation via image-space probing
+  - Baseline **Pseudo Multiple Replica (PMR)** comparisons
+
+---
+
+## Key idea (high-level)
+
+Traditional **PMR** estimates noise by:
+1) adding random noise to k-space many times,  
+2) reconstructing each replica,  
+3) measuring voxel-wise variance from the ensemble.
+
+This is general but can be expensive because it repeats full reconstructions.
+
+This project explores a complementary approach:
+- estimate the **diagonal of the reconstructed-image covariance** using **stochastic probing** (Hutchinson-style estimators),
+- implemented using **matrix–vector products** that reuse existing solver primitives (e.g., CG with \(A\) / \(A^H\)).
+
+The notebooks focus on comparing **convergence behavior** and practical runtime/quality trade-offs against PMR.
+
+---
+
+## Demos (Jupyter notebooks)
+
+### 1) Non-Cartesian spiral phantom (regularized CG-SENSE)
+**Notebook:** `notebooks/non_cartesian_phantom_gfactor_comparison.ipynb`
+
+- Multi-coil GRE spiral phantom + measured trajectory  
+- Retrospective shot subsampling (e.g., keep every \(R\)-th interleave)  
+- Regularized CG-SENSE with NUFFT/DCF and Toeplitz normal-op acceleration  
+- Reference: high-replica PMR surrogate (e.g., \(N_\mathrm{ref}=10{,}000\))
+
+Assets (if included in repo):
+- `notebooks/assets/noncartesian_phantom_convergence.gif`
+- `notebooks/assets/compressed/noncartesian_phantom_convergence_small.gif`
+
+---
+
+### 2) Cartesian knee (unregularized CG-SENSE, analytical reference)
+**Notebook:** `notebooks/cartesian_knee_gfactor_comparison.ipynb`
+
+- Stanford knee dataset (multi-coil Cartesian)  
+- Retrospective uniform undersampling (e.g., \(R=2\) along phase-encode)  
+- Unregularized CG-SENSE  
+- Reference: closed-form analytical SENSE g-factor
+
+Assets (if included in repo):
+- `notebooks/assets/cartesian_knee_convergence.gif`
+- `notebooks/assets/compressed/cartesian_knee_convergence_small.gif`
+
+---
+
+## Quick start
+
+### Setup
+```bash
+git clone https://github.com/<your-org-or-user>/<your-repo>.git
+cd <your-repo>
+
+conda env create -f environment.yml
+conda activate <env-name>
+```
+
+If needed:
+```bash
+pip install h5py einops
+```
+
+### Run notebooks
+```bash
+jupyter notebook
+```
+
+Open:
+- `notebooks/non_cartesian_phantom_gfactor_comparison.ipynb`
+- `notebooks/cartesian_knee_gfactor_comparison.ipynb`
+
+---
+
+## Notes on metrics & visualization
+
+- Many figures show **\(1/g\)** rather than \(g\), since \(1/g\) is directly interpretable as **SNR efficiency**.
+- Convergence is typically evaluated vs:
+  - an **analytical reference** (Cartesian), or
+  - a **high-N PMR surrogate reference** (non-Cartesian / no closed form).
+
+---
+
+## References (background)
+
+- Pruessmann et al., SENSE (parallel imaging / g-factor)
+- Robson et al., SNR and g-factor quantification in parallel imaging
+- Hutchinson (stochastic trace/diagonal estimation), and follow-on diagonal estimation work (e.g., Bekas)
+
+---
+
+## Citation / use
+
+This is research code intended for reproducible demonstrations. If you use ideas or figures, please cite the associated manuscript / preprint and/or relevant prior work listed above.
