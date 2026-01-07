@@ -13,7 +13,7 @@ The goal is practical: make voxel-wise noise/SNR maps easier to compute and comp
   - **Non-Cartesian spiral CG-SENSE (phantom)** with a **high-N PMR surrogate reference**
 - Core utilities for:
   - Operator-style recon code (forward/adjoint)
-  - Stochastic diagonal estimation via image-space probing
+  - diagonal estimation via image-space probing
   - Baseline **Pseudo Multiple Replica (PMR)** comparisons
 
 ---
@@ -38,6 +38,9 @@ The notebooks focus on comparing **convergence behavior** and practical runtime/
 ## Demos (Jupyter notebooks)
 
 ### 1) Non-Cartesian spiral phantom (regularized CG-SENSE)
+
+![Non-Cartesian Phantom Convergence](notebooks/assets/compressed/cartesian_knee_convergence_small.gif)
+
 **Notebook:** `notebooks/non_cartesian_phantom_gfactor_comparison.ipynb`
 
 - Multi-coil GRE spiral phantom + measured trajectory  
