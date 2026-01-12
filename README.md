@@ -39,7 +39,7 @@ The notebooks focus on comparing **convergence behavior** and practical runtime/
 
 ### 1) Non-Cartesian spiral phantom (regularized CG-SENSE)
 
-![Non-Cartesian Phantom Convergence](noncartesian_phantom_convergence_small.gif)
+![Non-Cartesian Phantom Convergence](notebooks/assets/compressed/noncartesian_phantom_convergence_small.gif)
 
 **Notebook:** `notebooks/non_cartesian_phantom_gfactor_comparison.ipynb`
 
