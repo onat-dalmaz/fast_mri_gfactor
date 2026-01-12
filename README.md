@@ -39,7 +39,7 @@ The notebooks focus on comparing **convergence behavior** and practical runtime/
 
 ### 1) Non-Cartesian spiral phantom (regularized CG-SENSE)
 
-![Non-Cartesian Phantom Convergence](notebooks/assets/compressed/cartesian_knee_convergence_small.gif)
+![Non-Cartesian Phantom Convergence](notebooks/assets/compressed/noncartesian_phantom_convergence.gif)
 
 **Notebook:** `notebooks/non_cartesian_phantom_gfactor_comparison.ipynb`
 
@@ -52,7 +52,7 @@ The notebooks focus on comparing **convergence behavior** and practical runtime/
 ---
 
 ### 2) Cartesian knee (unregularized CG-SENSE, analytical reference)
-![Cartesian Knee Convergence](notebooks/assets/compressed/noncartesian_phantom_convergence.gif)
+![Cartesian Knee Convergence](notebooks/assets/compressed/cartesian_knee_convergence_small.gif)
 **Notebook:** `notebooks/cartesian_knee_gfactor_comparison.ipynb`
 
 - Stanford knee dataset (multi-coil Cartesian)  
