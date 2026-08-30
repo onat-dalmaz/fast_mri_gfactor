@@ -1,23 +1,35 @@
-name: mr_recon
+# Direct dependency specification for the manuscript workflows.
+# This file is not a fully resolved transitive lockfile.
+name: mr_recon_env
 channels:
   - pytorch
   - nvidia
   - conda-forge
 dependencies:
-  - cupy
-  - einops
-  - ipykernel
-  - libgomp
-  - libxcrypt
-  - matplotlib
-  - nccl
-  - numpy==1.22.4
-  - pip=24.0
   - python=3.10
-  - pytorch-cuda=11.8
+  - pip
+  # ---- Core GPU / tensor stack ----
+  - pytorch::pytorch
+  - pytorch::torchvision
+  - pytorch::torchaudio
+  - pytorch::pytorch-cuda=11.7   # GPU build; see requirements.txt for a CPU/pip alternative
+  - cupy                         # imported unconditionally by mr_recon.utils
+  # ---- Scientific computing ----
+  - numpy>=1.24,<3               # relaxed from ==1.22.4: the pip deps (sigpy/numba) require
+                                 #   numpy>=1.24 and the resolved pytorch build supports numpy 2.x
+  - scipy                        # mr_recon.utils / mr_recon.fourier / analysis scripts
+  - pandas                       # imported by all three demo notebooks and most scripts
+  - matplotlib
   - scikit-image
-  - torchaudio
-  - torchvision
+  - h5py                         # raw dataset (.h5) loading in scripts/prepare_data.py
+  - einops
+  - tqdm                         # progress bars in mr_recon.algs / recons / gfactor / linops
+  # ---- Notebook execution / verification ----
+  - ipykernel
+  - nbformat                     # scripts/verify_notebooks.py
+  - nbclient                     # scripts/verify_notebooks.py
+  - pytest                       # `pytest scripts/` entry point
+  # ---- Pip-only packages ----
   - pip:
       - cvxpy
       - fast-pytorch-kmeans

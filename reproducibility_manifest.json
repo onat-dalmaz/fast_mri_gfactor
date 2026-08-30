@@ -1,0 +1,269 @@
+{
+  "manifest_version": "1.1.0",
+  "schema": "pico-reproducibility-manifest/1",
+  "last_audited": "2026-08-30",
+  "software": {
+    "name": "PICO noise-estimation toolbox",
+    "public_repository": "https://github.com/onat-dalmaz/pico_noise_estimation_toolbox",
+    "license": "MIT",
+    "release": {
+      "status": "no_immutable_release_claimed",
+      "release_date": null,
+      "note": "No tag, release, or archival DOI is claimed. The public development repository contains this MIT-licensed revision snapshot."
+    },
+    "paper": {
+      "title": "Fast Voxelwise SNR Estimation for Iterative MRI Reconstructions",
+      "journal": "Magnetic Resonance in Medicine",
+      "status": "under_revision",
+      "manuscript_source": "MRM-AMA-MainManuscript/MRM-AMA.tex",
+      "supporting_information_source": "MRM-AMA-MainManuscript/MRM-AMA-SI.tex",
+      "response_source": "MRM-AMA-MainManuscript/response_to_reviewers.md"
+    }
+  },
+  "release_readiness": {
+    "status": "public_development_repository_updated",
+    "superseded_packages": [
+      "revision_deliverables/MRM-26-26969_submission_ready_20260710_1450.zip",
+      "revision_deliverables/MRM-26-26969_revision_audit_20260710_1450.zip"
+    ],
+    "superseded_assets_archived_at": [
+      "MRM-AMA-MainManuscript/figs/archive_pre_20260822_final_grid/knee_ours_vs_pmr.png",
+      "MRM-AMA-MainManuscript/figs/archive_pre_20260822_final_grid/phantom_ours_vs_pmr_paper.png",
+      "MRM-AMA-MainManuscript/figs/archive_pre_20260822_final_grid/quantitative_R.png",
+      "MRM-AMA-MainManuscript/figs/archive_pre_20260822_final_grid/ablation.png"
+    ],
+    "note": "The July 10 figures are archived. Current Figures 2-5 were regenerated from the residual-converged Cartesian target and final common-physical-lambda non-Cartesian grid."
+  },
+  "notes": [
+    "The paper PNGs are curated assemblies from the exact analysis sources listed per figure; source mapping does not imply that a currently superseded checkpoint is release-ready.",
+    "The Cartesian and compressed-sensing notebooks demonstrate representative workflows; the non-Cartesian notebook inspects and verifies the final audited grid behind Figs. 3-5.",
+    "No full transitive environment lockfile is committed. environment.yml and requirements.txt specify direct dependencies; hardware-specific PyTorch, CUDA, and CuPy resolution remains platform-dependent.",
+    "The R3.2 high-TV figure is generated from the executed sweep and inserted into the Supporting Information.",
+    "Seed convention for demonstration notebooks: global NumPy/PyTorch seed 0, with deterministic per-arm re-seeding where documented in the notebooks."
+  ],
+  "environment": {
+    "spec_files": [
+      "environment.yml",
+      "requirements.txt",
+      "pyproject.toml"
+    ],
+    "resolution_status": "direct_dependencies_specified_not_transitively_locked",
+    "conda_env_name": "mr_recon_env",
+    "python_specification": "3.10",
+    "gpu_specification": "NVIDIA CUDA 11.7 environment is specified for the primary workflows; pip users must select matching PyTorch and CuPy builds.",
+    "install": [
+      "conda env create -f environment.yml",
+      "conda activate mr_recon_env",
+      "pip install -e ."
+    ]
+  },
+  "main_figures": {
+    "figure_1": {
+      "label": "fig:noise_module",
+      "paper_asset": "MRM-AMA-MainManuscript/figs/main.png",
+      "topic": "PICO workflow schematic and acquisition-component panels.",
+      "sources": [
+        "generate_figure_panels.py",
+        "experiments/noncartesian_phantom/data/mps.npy",
+        "experiments/noncartesian_phantom/data/trj.npy",
+        "experiments/noncartesian_phantom/data/b0.npy",
+        "experiments/noncartesian_phantom/data/dcf.npy",
+        "experiments/noncartesian_phantom/data/img.npy"
+      ],
+      "assembly": "manual curated composition from deterministic component panels",
+      "status": "current_asset_no_known_scientific_regeneration_blocker"
+    },
+    "figure_2": {
+      "label": "fig:knee_results",
+      "paper_asset": "MRM-AMA-MainManuscript/figs/knee_ours_vs_pmr.png",
+      "topic": "Cartesian PICO and PMR maps compared with analytical SENSE.",
+      "displayed_sample_counts": [
+        10,
+        20,
+        40,
+        80,
+        200
+      ],
+      "sources": [
+        "scripts/generate_final_revision_figures.py",
+        "src/mr_recon/pmr_variance.py",
+        "experiments/cartesian_knee/results/converged_target_audit/R2_L0.0_slice120/tol_1e-5_seed20260710/maps_checkpoint.npz",
+        "reports/final_revision_results.csv"
+      ],
+      "target": "Residual-converged Cartesian benchmark targeting the analytical inverse; true residual <=1e-5.",
+      "status": "current_residual_converged_asset"
+    },
+    "figure_3": {
+      "label": "fig:spiral_qual",
+      "paper_asset": "MRM-AMA-MainManuscript/figs/phantom_ours_vs_pmr_paper.png",
+      "topic": "Final non-Cartesian regularized relative-noise maps.",
+      "configuration": {
+        "acceleration": 2,
+        "lambda_physical": 0.049014,
+        "displayed_sample_counts": [
+          50,
+          200,
+          1000,
+          5000
+        ],
+        "pmr_reference_samples_per_seed": 50000,
+        "reference_seeds": [
+          20260730,
+          20260731
+        ]
+      },
+      "sources": [
+        "experiments/noncartesian_phantom/results/noncart_final_grid/matched/R2/seed20260732/",
+        "reports/noncart_final_grid/candidate_data/fig3/",
+        "scripts/generate_final_revision_figures.py",
+        "reports/final_revision_results.csv"
+      ],
+      "status": "current_final_grid_asset"
+    },
+    "figure_4": {
+      "label": "fig:spiral_quant",
+      "paper_asset": "MRM-AMA-MainManuscript/figs/quantitative_R.png",
+      "topic": "Non-Cartesian NRMSE versus cumulative runtime at R=2,3,4.",
+      "sources": [
+        "reports/noncart_final_grid/candidate_data/fig4_matched_curves.csv",
+        "reports/noncart_final_grid/candidate_data/fig4_threshold_crossings.csv",
+        "scripts/generate_final_revision_figures.py",
+        "reports/final_revision_results.csv"
+      ],
+      "status": "current_final_grid_asset"
+    },
+    "figure_5": {
+      "label": "fig:ablation_results",
+      "paper_asset": "MRM-AMA-MainManuscript/figs/ablation.png",
+      "topic": "Probe-distribution ablation for the final R=2 non-Cartesian operator.",
+      "sources": [
+        "reports/noncart_final_grid/candidate_data/fig5_ablation_curves.csv",
+        "reports/noncart_final_grid/candidate_data/fig5_threshold_crossings.csv",
+        "scripts/generate_final_revision_figures.py",
+        "reports/final_revision_results.csv"
+      ],
+      "status": "current_final_grid_asset"
+    },
+    "figure_6": {
+      "label": "fig:cs_efficiency",
+      "paper_asset": "MRM-AMA-MainManuscript/figs/cs_ours_vs_pmr_corrected.png",
+      "topic": "TV-regularized compressed-sensing PICO and PMR noise maps.",
+      "sources": [
+        "notebooks/03_compressed_sensing.ipynb",
+        "scripts/nonlinear_cs_noise_sweep.py",
+        "scripts/plot_nonlinear_final_comparison.py",
+        "experiments/compressed_sensing/data/slice017_R2.npz"
+      ],
+      "status": "current_asset_no_known_scientific_regeneration_blocker"
+    },
+    "figure_7": {
+      "label": "fig:cs_robustness",
+      "paper_asset": "MRM-AMA-MainManuscript/figs/cs_linearity_new.png",
+      "topic": "Compressed-sensing robustness to input-noise level.",
+      "sources": [
+        "scripts/nonlinear_cs_noise_sweep.py",
+        "scripts/plot_noise_level_sweep.py",
+        "scripts/plot_nonlinear_final_comparison.py"
+      ],
+      "status": "current_asset_no_known_scientific_regeneration_blocker"
+    }
+  },
+  "supporting_information_assets": {
+    "high_tv_r3_2": {
+      "topic": "R3.2 high-TV implementation diagnostic",
+      "representative_slice_index": 20,
+      "acceleration": 2,
+      "lambda_tv": [
+        0.01,
+        0.03,
+        0.1,
+        0.3,
+        1.0
+      ],
+      "sample_counts": {
+        "pmr": 2000,
+        "pico": 500
+      },
+      "fista_iterations": 100,
+      "source": "experiments/fastmri_knee/results/lambda_tv_sweep_slice20/maps/",
+      "generator": "scripts/generate_high_tv_si_assets.py",
+      "outputs": [
+        "MRM-AMA-MainManuscript/figs/si_candidates/high_tv_r3_2/high_tv_r3_2.png",
+        "MRM-AMA-MainManuscript/figs/si_candidates/high_tv_r3_2/high_tv_r3_2.pdf",
+        "MRM-AMA-MainManuscript/figs/si_candidates/high_tv_r3_2/high_tv_r3_2.svg",
+        "MRM-AMA-MainManuscript/figs/si_candidates/high_tv_r3_2/high_tv_r3_2_metrics.csv",
+        "MRM-AMA-MainManuscript/figs/si_candidates/high_tv_r3_2/high_tv_r3_2_table.tex",
+        "MRM-AMA-MainManuscript/figs/si_candidates/high_tv_r3_2/high_tv_r3_2_caption.md"
+      ],
+      "required_wording": "The current JVP implementation became non-finite at the tested λ_TV=1 operating point.",
+      "status": "inserted_in_supporting_information"
+    },
+    "cartesian_finite_cg": {
+      "topic": "Finite adaptive-CG behavior",
+      "sources": [
+        "scripts/run_cg_earlystop_noise.py",
+        "experiments/cartesian_knee/results/cg_earlystop/R2_L0.0_slice120_pmr-stable_welford_full20260822/cg_earlystop_metrics.csv",
+        "experiments/cartesian_knee/results/cg_earlystop/R2_L0.0_slice120_pmr-stable_welford_full20260822/run_manifest.json"
+      ],
+      "status": "si_only_full_budget_adaptive_finite_step_demonstration"
+    },
+    "cost_scaling": {
+      "topic": "Per-sample computational cost",
+      "sources": [
+        "scripts/run_scaling_analysis.py",
+        "experiments/scaling/scaling_results.csv",
+        "experiments/scaling/SCALING_FINDING.md"
+      ],
+      "status": "numeric_outputs_present_on_disk"
+    },
+    "metric_reconciliation": {
+      "topic": "Metric-matched PMR convergence comparison",
+      "sources": [
+        "scripts/velikina_reconciliation.py",
+        "experiments/noncartesian_phantom/results/velikina_reconciliation/"
+      ],
+      "status": "present_on_disk_historical_operator_context"
+    },
+    "noncartesian_validity": {
+      "topic": "Support, reference, physical-scaling, regularization, and matched-solver validation",
+      "report": "reports/NONCART_VALIDITY_AUDIT.md",
+      "final_grid": "experiments/noncartesian_phantom/results/noncart_final_grid/",
+      "ledger": "reports/final_revision_results.csv",
+      "status": "complete"
+    }
+  },
+  "data_sources": {
+    "cartesian_knee": {
+      "sample_bundle": "experiments/cartesian_knee/data/slice120_R2.npz",
+      "raw_sample": "experiments/cartesian_knee/data/efa383b6-9446-438a-9901-1fe951653dbd.h5",
+      "larger_data": "mridata.org Stanford Fully-Sampled 3D FSE Knees",
+      "prepare_script": "scripts/prepare_data.py"
+    },
+    "noncartesian_phantom": {
+      "sample_bundle": "experiments/noncartesian_phantom/data/slice_R2_bundle.npz",
+      "raw_sample": "experiments/noncartesian_phantom/data/{img,mps,ksp,trj,dcf,b0}.npy",
+      "larger_data": "single physical brain-phantom spiral acquisition"
+    },
+    "compressed_sensing_fastmri": {
+      "sample_bundle": "experiments/compressed_sensing/data/slice017_R2.npz",
+      "raw_sample": "experiments/fastmri_knee/data/file1000000.h5",
+      "larger_data": "fastMRI knee_multicoil (registration required)",
+      "prepare_script": "scripts/prepare_data.py"
+    },
+    "multisubject_instructions": "experiments/MULTISUBJECT_DATA.md"
+  },
+  "verification": {
+    "demonstration_notebooks": "python scripts/verify_notebooks.py",
+    "notebook_checks_20260822": {
+      "notebooks/01_cartesian_knee.ipynb": "executed successfully with nbclient",
+      "notebooks/02_noncartesian_spiral.ipynb": "executed successfully with nbclient",
+      "notebooks/03_compressed_sensing.ipynb": "operating-point terminology synchronized; not re-executed"
+    },
+    "high_tv_assets": "conda run -n pico_repro_test python scripts/generate_high_tv_si_assets.py",
+    "high_tv_unit_tests": "conda run -n pico_repro_test python -m pytest -q tests/test_high_tv_si_assets.py",
+    "focused_scientific_tests": "15 passed: test_noncart_final_grid.py, test_cartesian_converged_target_audit.py, test_high_tv_si_assets.py",
+    "document_build_status": "Tectonic/Pandoc release build of 2026-08-30 after grid-free time-to-target and response reframes.",
+    "release_build_directory": "MRM-AMA-MainManuscript/build_release_20260830/",
+    "public_repository_verification": "public development repository updated with MIT license, pandas environment, and reproducibility manifest"
+  }
+}

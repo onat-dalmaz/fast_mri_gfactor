@@ -1,0 +1,44 @@
+# Version-unlocked pip dependency inventory for the PICO toolbox.
+# This file specifies direct dependencies; it is not a reproducible lockfile.
+#
+# This is the pip-based complement to environment.yml (the recommended install
+# path is conda: `conda env create -f environment.yml`). Use this file when you
+# prefer a plain virtualenv:
+#
+#     python -m venv .venv && source .venv/bin/activate
+#     pip install -r requirements.txt
+#     pip install -e .
+#
+# NOTE ON GPU PACKAGES:
+#   * torch/torchvision/torchaudio: install the build matching your CUDA (or CPU)
+#     from https://pytorch.org/get-started/locally/ . The demo notebooks fall
+#     back to CPU automatically if no CUDA device is present.
+#   * cupy: install the wheel matching your CUDA toolkit, e.g. `cupy-cuda11x` or
+#     `cupy-cuda12x` (plain `pip install cupy` builds from source and needs nvcc).
+#     cupy is imported unconditionally by mr_recon.utils.
+
+# ---- Scientific computing ----
+numpy>=1.24,<3   # sigpy/numba require numpy>=1.24; modern torch supports numpy 2.x
+scipy
+pandas
+matplotlib
+scikit-image
+h5py
+einops
+tqdm
+
+# ---- Tensor / MRI reconstruction stack ----
+torch
+torchvision
+torchaudio
+sigpy
+torchkbnufft
+fast-pytorch-kmeans
+cvxpy
+# cupy-cuda11x        # uncomment and match to your CUDA toolkit (see note above)
+
+# ---- Notebook execution / verification ----
+ipykernel
+nbformat
+nbclient
+pytest

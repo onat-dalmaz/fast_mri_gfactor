@@ -1,0 +1,74 @@
+cff-version: 1.2.0
+message: >-
+  If you use this software, please cite both the software itself (metadata
+  below) and the accompanying paper (see `preferred-citation`).
+title: "PICO: Fast Voxelwise SNR Estimation for Iterative MRI Reconstructions"
+abstract: >-
+  PICO (Probing Image-space COvariance) is a stochastic diagonal estimator for
+  voxelwise noise-variance maps in linear and nonlinear iterative MRI
+  reconstructions, from which SNR and g-factor maps are derived. This repository
+  is the companion toolbox for the Dalmaz et al. manuscript "Fast Voxelwise SNR
+  Estimation for Iterative MRI Reconstructions," under revision for Magnetic
+  Resonance in Medicine.
+type: software
+# `version` and `date-released` are intentionally omitted until the
+# manuscript-associated GitHub release is published.
+license: MIT
+repository-code: "https://github.com/onat-dalmaz/pico_noise_estimation_toolbox"
+url: "https://github.com/onat-dalmaz/pico_noise_estimation_toolbox"
+keywords:
+  - noise estimation
+  - SNR
+  - g-factor
+  - non-Cartesian MRI
+  - iterative reconstruction
+  - compressed sensing
+authors:
+  - given-names: Onat
+    family-names: Dalmaz
+    orcid: "https://orcid.org/0000-0001-7978-5311"
+    affiliation: "Department of Electrical Engineering, Stanford University, California, USA"
+  - given-names: Daniel
+    family-names: Abraham
+    orcid: "https://orcid.org/0009-0004-4299-3132"
+    affiliation: "Department of Electrical Engineering, Stanford University, California, USA"
+  - given-names: Alexander R.
+    family-names: Toews
+    orcid: "https://orcid.org/0009-0007-6682-1708"
+    affiliation: "Department of Electrical Engineering, Stanford University, California, USA"
+  - given-names: Akshay S.
+    family-names: Chaudhari
+    orcid: "https://orcid.org/0000-0002-3667-6796"
+    affiliation: "Department of Radiology, Stanford University, California, USA"
+  - given-names: Kawin
+    family-names: Setsompop
+    orcid: "https://orcid.org/0000-0003-0455-7634"
+    affiliation: "Department of Electrical Engineering, Stanford University, California, USA"
+  - given-names: Brian A.
+    family-names: Hargreaves
+    orcid: "https://orcid.org/0000-0003-0982-3508"
+    affiliation: "Department of Radiology, Stanford University, California, USA"
+preferred-citation:
+  type: article
+  title: "Fast Voxelwise SNR Estimation for Iterative MRI Reconstructions"
+  journal: "Magnetic Resonance in Medicine"
+  year: 2026
+  authors:
+    - given-names: Onat
+      family-names: Dalmaz
+      orcid: "https://orcid.org/0000-0001-7978-5311"
+    - given-names: Daniel
+      family-names: Abraham
+      orcid: "https://orcid.org/0009-0004-4299-3132"
+    - given-names: Alexander R.
+      family-names: Toews
+      orcid: "https://orcid.org/0009-0007-6682-1708"
+    - given-names: Akshay S.
+      family-names: Chaudhari
+      orcid: "https://orcid.org/0000-0002-3667-6796"
+    - given-names: Kawin
+      family-names: Setsompop
+      orcid: "https://orcid.org/0000-0003-0455-7634"
+    - given-names: Brian A.
+      family-names: Hargreaves
+      orcid: "https://orcid.org/0000-0003-0982-3508"
